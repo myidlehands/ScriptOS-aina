@@ -1,12 +1,7 @@
+
 <div align="center">
-  <a href="https://github.com/myidlehands/scriptos-aina">
-    http://googleusercontent.com/image_generation_content/0
-
-
-  </a>
-
+  <img src="aina_header.png" alt="ScriptOS-AINA" style="width:50%; height:auto;">
   <h3 align="center">O Sistema Operacional Definitivo para Criadores YouTube</h3>
-
   <p align="center">
     Gerencie tendências, decodifique estilos e gere roteiros virais com a inteligência da <strong>A.I.N.A.</strong>
     <br />
@@ -16,9 +11,7 @@
     <a href="https://github.com/myidlehands/scriptos-aina/issues">Solicitar Feature</a>
   </p>
 </div>
-
 ---
-
 <details open="open">
   <summary><h2 style="display: inline-block">📋 Tabela de Conteúdos</h2></summary>
   <ol>
