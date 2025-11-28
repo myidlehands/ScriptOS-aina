@@ -1,18 +1,22 @@
 
-<div align="center">
-  <img src="aina_header.png" alt="ScriptOS-AINA" style="width:50%; height:auto;">
-  <h3 align="center">O Sistema Operacional Definitivo para Criadores YouTube</h3>
-  <p align="center">
-    Gerencie tendências, decodifique estilos e gere roteiros virais com a inteligência da <strong>A.I.N.A.</strong>
-    <br />
-    <br />
-    <a href="https://github.com/myidlehands/scriptos-aina/issues">Reportar Bug</a>
-    ·
-    <a href="https://github.com/myidlehands/scriptos-aina/issues">Solicitar Feature</a>
-  </p>
-</div>
+<img src="/aina_header.png" align="left" width="350" alt="A.I.N.A. Header" style="margin-right: 25px; margin-bottom: 20px; border-radius: 12px;">
+
+# ScriptOS-aina `v3.0.0`
+
+### O Sistema Operacional Definitivo para Criadores
+
+Gerencie tendências, decodifique estilos e gere roteiros virais com a inteligência da **A.I.N.A.**, recursos avançados para descoberta de roteiros e auxílio personalizado.
+
+
+
+[![Issues](https://img.shields.io/github/issues/myidlehands/scriptos-aina?style=flat-square&logo=github&color=FF0000)](https://github.com/myidlehands/scriptos-aina/issues)
+[![Forks](https://img.shields.io/github/forks/myidlehands/scriptos-aina?style=flat-square&logo=github&color=00c6ff)](https://github.com/myidlehands/scriptos-aina/network/members)
+[![Stars](https://img.shields.io/github/stars/myidlehands/scriptos-aina?style=flat-square&logo=github&color=EAC54F)](https://github.com/myidlehands/scriptos-aina/stargazers)
+[![License](https://img.shields.io/github/license/myidlehands/scriptos-aina?style=flat-square&color=888888)](./LICENSE)
+
 ---
-<details open="open">
+---
+  <br>
   <summary><h2 style="display: inline-block">📋 Tabela de Conteúdos</h2></summary>
   <ol>
     <li><a href="#-o-que-há-de-novo-na-v300">O Que Há de Novo (v3.0.0)</a></li>
@@ -21,10 +25,10 @@
     <li><a href="#-tecnologias-utilizadas">Tecnologias Utilizadas</a></li>
     <li><a href="#-começando">Começando</a></li>
     <li><a href="#-configuração-de-ambiente">Configuração de Ambiente</a></li>
-    <li><a href="#-roadmap">Roadmap</a></li>
   </ol>
-</details>
+  <br>
 
+---
 ---
 
 ## 🆕 O Que Há de Novo na v3.0.0?
