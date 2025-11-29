@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ScriptOS A.I.N.A</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <title>A.I.N.A OS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -19,24 +20,9 @@
               slate: {
                 950: '#020617',
               },
-              red: {
-                600: '#dc2626',
-                900: '#7f1d1d',
-              },
-              purple: {
-                500: '#a855f7',
-              }
             },
             animation: {
-              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'scanline': 'scanline 8s linear infinite',
-              'spin-slow': 'spin 3s linear infinite',
-            },
-            keyframes: {
-              scanline: {
-                '0%': { transform: 'translateY(-100%)' },
-                '100%': { transform: 'translateY(100%)' },
-              }
+              'pulse-slow': 'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             }
           }
         }
@@ -53,14 +39,20 @@
     "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
     "vite": "https://aistudiocdn.com/vite@^7.2.4",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "path": "https://aistudiocdn.com/path@^0.12.7"
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "url": "https://aistudiocdn.com/url@^0.11.4"
   }
 }
 </script>
+<style>
+  .automation-grid {
+    background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+</style>
 </head>
-  <body class="bg-slate-950 text-slate-200">
+  <body class="bg-slate-950 text-slate-200 overflow-hidden">
     <div id="root"></div>
-    <div class="scanline-overlay fixed top-0 left-0 w-full h-full pointer-events-none z-50 opacity-[0.15]" style="background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.3) 50%); background-size: 100% 4px;"></div>
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>

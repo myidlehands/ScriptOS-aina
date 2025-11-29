@@ -70,7 +70,7 @@ const Studio: React.FC<StudioProps> = ({ scriptId, onClose, onUpdate, lang }) =>
   }, [scriptId]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (mode === 'PROMPTER' && isScrolling && prompterRef.current) {
       interval = setInterval(() => {
         if (prompterRef.current) {

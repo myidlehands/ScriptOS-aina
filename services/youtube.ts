@@ -1,3 +1,4 @@
+
 import { YouTubeVideo } from "../types";
 
 export interface ChannelRawData {
@@ -103,6 +104,49 @@ export const fetchChannelDeepData = async (identifier: string): Promise<ChannelR
 
   } catch (error) {
     console.error("YouTube API Error:", error);
+    return null;
+  }
+};
+
+export const getVideoDetails = async (urlOrId: string): Promise<YouTubeVideo | null> => {
+  if (!API_KEY) return null;
+  
+  try {
+    let videoId = '';
+    // Extract ID
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = urlOrId.match(regExp);
+    if (match && match[2].length === 11) {
+      videoId = match[2];
+    } else if (urlOrId.length === 11) {
+      videoId = urlOrId;
+    } else {
+      return null;
+    }
+
+    const url = `${BASE_URL}/videos?part=snippet,statistics&id=${videoId}&key=${API_KEY}`;
+    const res = await fetch(url);
+    const json = await res.json();
+
+    if (!json.items || json.items.length === 0) return null;
+
+    const item = json.items[0];
+    const viewCount = parseInt(item.statistics.viewCount || '0', 10);
+    const publishDate = new Date(item.snippet.publishedAt);
+    const daysSincePublished = Math.max(1, (Date.now() - publishDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return {
+       id: item.id,
+       title: item.snippet.title,
+       channelTitle: item.snippet.channelTitle,
+       thumbnailUrl: item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.medium?.url,
+       publishedAt: item.snippet.publishedAt,
+       viewCount: viewCount.toLocaleString(),
+       viralVelocity: Math.round(viewCount / daysSincePublished),
+       description: item.snippet.description
+    };
+  } catch (e) {
+    console.error(e);
     return null;
   }
 };

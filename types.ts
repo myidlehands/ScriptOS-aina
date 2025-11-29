@@ -16,6 +16,29 @@ export interface ViralMetrics {
   feedback: string;
 }
 
+export interface TitleVariant {
+  title: string;
+  psychology: string;
+  score: number;
+}
+
+export interface ThumbnailData {
+  concept: string;
+  imagePrompt: string;
+  imageBase64?: string;
+}
+
+export type ReferenceType = 'FILE' | 'URL' | 'YOUTUBE_VIDEO' | 'YOUTUBE_CHANNEL';
+
+export interface ScriptReference {
+  id: string;
+  type: ReferenceType;
+  data: string;
+  mimeType?: string;
+  title: string;
+  metadata?: any;
+}
+
 export interface Script {
   id: string;
   title: string;
@@ -28,14 +51,18 @@ export interface Script {
   viralMetrics?: ViralMetrics;
   estimatedViews?: number;
   language?: Language;
+  selectedTitle?: TitleVariant;
+  thumbnail?: ThumbnailData;
+  references?: ScriptReference[];
+  duration?: string;
 }
 
 export interface StyleDNA {
   id: string;
   name: string;
-  tone: string; // e.g., "Melancólico", "Agressivo"
-  structure: string; // e.g., "Hook 5s -> Intro -> Deep Dive"
-  audioSignature: string; // e.g., "Dark Synthwave"
+  tone: string;
+  structure: string;
+  audioSignature: string;
   description: string;
 }
 
@@ -56,8 +83,50 @@ export interface YouTubeVideo {
   thumbnailUrl: string;
   publishedAt: string;
   viewCount: string;
-  viralVelocity: number; // Views per day
+  viralVelocity: number;
   description: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'TREND_HUNTER' | 'WRITER' | 'DECODER' | 'PRODUCTION' | 'STUDIO';
+// --- IDENTITY & PROFILE ---
+export interface ChannelIdentity {
+  brandVoice: string; // e.g. "Sarcastic, Nihilistic, Educational"
+  targetAudience: string; // e.g. "Gen Z interested in True Crime"
+  manifesto: string; // The "why" of the channel
+}
+
+export interface UserProfile {
+  channelId?: string;
+  channelName?: string;
+  channelHandle?: string;
+  avatarUrl?: string;
+  subscriberCount?: string;
+  identity: ChannelIdentity;
+}
+
+// --- AUTOMATION ---
+export type NodeType = 'TRIGGER_TREND' | 'ACTION_SCRIPT' | 'FILTER_STYLE' | 'OUTPUT_NOTIFY';
+
+export interface AutomationNode {
+  id: string;
+  type: NodeType;
+  position: { x: number; y: number };
+  data: { label: string; config?: any };
+}
+
+export interface AutomationEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export type ViewState = 'DASHBOARD' | 'TREND_HUNTER' | 'WRITER' | 'DECODER' | 'PRODUCTION' | 'STUDIO' | 'AUTOMATIONS' | 'PROFILE';
+
+// --- CHAT ---
+export type ChatRole = 'user' | 'model';
+
+export interface ChatMessage {
+  id: string;
+  role: ChatRole;
+  text: string;
+  timestamp: number;
+}

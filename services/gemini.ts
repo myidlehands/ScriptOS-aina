@@ -1,6 +1,8 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { ViralMetrics, StyleDNA, TrendReport, Language } from "../types";
+import { ViralMetrics, StyleDNA, TrendReport, Language, TitleVariant, ThumbnailData, ScriptReference, ChatMessage } from "../types";
 import { ChannelRawData } from "./youtube";
+import { getUserProfile } from "./storage";
 
 const getClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -9,17 +11,33 @@ const getClient = () => {
 // Gerador de System Instruction dinâmico baseado no idioma
 const getSystemInstruction = (lang: Language) => {
   const isPt = lang === 'pt-br';
+  const profile = getUserProfile();
+  
+  let identityContext = "";
+  if (profile) {
+    identityContext = `
+    CREATOR IDENTITY (CRITICAL):
+    - Channel: ${profile.channelName || 'Unknown'}
+    - Brand Voice: ${profile.identity.brandVoice}
+    - Target Audience: ${profile.identity.targetAudience}
+    - Manifesto: ${profile.identity.manifesto}
+    
+    ADAPT YOUR OUTPUT TO MATCH THIS IDENTITY PERFECTLY.
+    `;
+  }
+
   return `You are "A.I.N.A" (Automated Investigative Narrative Assistant), the core engine of ScriptOS. 
 You are an expert in creating dark, investigative, and documentary-style content for platforms like YouTube.
 Your personality is cold, professional, and brutally honest. You value retention, shock value, and truth.
 YOUR OUTPUT LANGUAGE IS: ${isPt ? 'PORTUGUESE (BRAZIL)' : 'ENGLISH (US)'}.
 
+${identityContext}
+
 RULES:
 1. When writing scripts, start with an aggressive hook in the first 5 seconds.
-2. NEVER use generic AI openers like "In this video we will explore" or "Neste vídeo vamos explorar". Be visceral.
+2. NEVER use generic AI openers like "In this video we will explore". Be visceral.
 3. Use short sentences. Focus on sensory details.
-4. If asked to analyze, be a harsh critic. Give low scores if the content is boring.
-5. Format script output in Markdown with cues for [VISUALS] and [AUDIO].`;
+4. Format script output in Markdown with cues for [VISUALS] and [AUDIO].`;
 };
 
 // Robust JSON Extractor
@@ -44,8 +62,78 @@ const parseJSON = <T>(text: string): T | null => {
       // Ignore
     }
   }
-  console.error("Failed to parse JSON response:", text);
   return null;
+};
+
+export const generateViralTitles = async (topic: string, lang: Language): Promise<TitleVariant[]> => {
+  const ai = getClient();
+  const prompt = `
+    Generate 5 viral YouTube titles for a video about: "${topic}".
+    Use click-worthy psychological triggers (Fear, Curiosity, Greed, Negativity Bias).
+    Output LANGUAGE: ${lang === 'pt-br' ? 'Portuguese (Brazil)' : 'English'}.
+    
+    Return JSON array format:
+    [{ "title": "...", "psychology": "Explained trigger", "score": 95 }]
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+    return parseJSON<TitleVariant[]>(response.text || '') || [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const generateThumbnailConcept = async (title: string, topic: string, style: StyleDNA, lang: Language): Promise<ThumbnailData> => {
+  const ai = getClient();
+  const prompt = `
+    Design a high-CTR YouTube thumbnail concept for:
+    TITLE: "${title}"
+    TOPIC: "${topic}"
+    STYLE: ${style.name} (${style.tone})
+
+    1. Create a "Concept" description explaining the visual strategy.
+    2. Create a "Image Prompt" optimized for an AI image generator (detailed, describing lighting, composition, subject).
+    
+    Output JSON: { "concept": "...", "imagePrompt": "..." }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    });
+    return parseJSON<ThumbnailData>(response.text || '') || { concept: '', imagePrompt: '' };
+  } catch (e) {
+    return { concept: 'Error generating concept', imagePrompt: '' };
+  }
+};
+
+export const generateThumbnailImage = async (imagePrompt: string): Promise<string | undefined> => {
+  const ai = getClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: imagePrompt,
+      config: {}
+    });
+
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          return part.inlineData.data;
+        }
+      }
+    }
+    return undefined;
+  } catch (e) {
+    return undefined;
+  }
 };
 
 export const generateScript = async (
@@ -53,26 +141,57 @@ export const generateScript = async (
   style: StyleDNA,
   duration: string,
   lang: Language,
-  contextData?: string
+  contextData?: string,
+  title?: string,
+  thumbnailDesc?: string,
+  references?: ScriptReference[]
 ): Promise<string> => {
   const ai = getClient();
-  const prompt = `
+  
+  const contentParts: any[] = [];
+  
+  const textPrompt = `
     Create a script for a video.
     LANGUAGE: ${lang === 'pt-br' ? 'Portuguese (Brazil)' : 'English'}
-    TOPIC: ${topic}
-    STYLE DNA: ${style.name} (${style.tone})
-    DURATION: ${duration}
-    CONTEXT/DATA: ${contextData || 'None provided. Use your knowledge base.'}
+    
+    METADATA:
+    - TOPIC: ${topic}
+    - SELECTED TITLE: ${title || 'N/A'}
+    - THUMBNAIL VISUAL: ${thumbnailDesc || 'N/A'}
+    - STYLE: ${style.name} (${style.tone})
+    - DURATION: ${duration}
+    
+    ADDITIONAL CONTEXT NOTES: 
+    ${contextData || 'None.'}
 
-    Structure the script with sections: HOOK, INTRO, BODY (divided by key points), OUTRO.
-    Include [VISUAL CUE] and [AUDIO CUE] directives in bold brackets.
-    If you need to verify facts, use Google Search.
+    INSTRUCTIONS:
+    1. Start with the HOOK. If a thumbnail description is provided, reference that visual element immediately.
+    2. Structure: HOOK -> INTRO -> BODY (Key Points) -> OUTRO.
+    3. Include [VISUAL CUE] directives.
+    4. If references (images/PDFs) are provided, analyze them to extract facts.
   `;
+  contentParts.push({ text: textPrompt });
+
+  if (references) {
+    for (const ref of references) {
+      if (ref.type === 'FILE' && ref.mimeType && ref.data) {
+        contentParts.push({
+          inlineData: {
+            mimeType: ref.mimeType,
+            data: ref.data
+          }
+        });
+        contentParts.push({ text: `[REFERENCE FILE: ${ref.title}]` });
+      } else if (ref.type === 'YOUTUBE_VIDEO' || ref.type === 'URL') {
+        contentParts.push({ text: `[REFERENCE LINK: ${ref.title}] \n URL: ${ref.data} \n METADATA: ${JSON.stringify(ref.metadata || {})}` });
+      }
+    }
+  }
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      contents: { parts: contentParts },
       config: {
         systemInstruction: getSystemInstruction(lang),
         tools: [{ googleSearch: {} }] 
@@ -80,8 +199,7 @@ export const generateScript = async (
     });
     return response.text || "Error: No text generated.";
   } catch (error) {
-    console.error("Script generation failed:", error);
-    return "SYSTEM ERROR: Could not generate script. Check Neural Link (API Key).";
+    return "SYSTEM ERROR: Could not generate script.";
   }
 };
 
@@ -89,9 +207,8 @@ export const remixScript = async (currentContent: string, mode: 'RETENTION' | 'C
   const ai = getClient();
   const prompt = `
     Rewrite the following script to maximize ${mode}.
-    LANGUAGE: ${lang === 'pt-br' ? 'Portuguese (Brazil)' : 'English'}
     
-    IF RETENTION: Focus on removing fluff, increasing pacing, and adding open loops (questions not immediately answered).
+    IF RETENTION: Focus on removing fluff, increasing pacing, and adding open loops.
     IF CONTROVERSY: Focus on stronger opinions, darker truths, and challenging the viewer's worldview.
     
     SCRIPT CONTENT:
@@ -118,10 +235,10 @@ export const analyzeViralScore = async (scriptContent: string, lang: Language): 
   const schema: Schema = {
     type: Type.OBJECT,
     properties: {
-      hookScore: { type: Type.NUMBER, description: "0-100 score on how grabbing the intro is." },
-      retentionScore: { type: Type.NUMBER, description: "0-100 score on pacing and interest." },
-      controversyScore: { type: Type.NUMBER, description: "0-100 score on potential for debate/shock." },
-      feedback: { type: Type.STRING, description: "Brutally honest qualitative feedback." }
+      hookScore: { type: Type.NUMBER },
+      retentionScore: { type: Type.NUMBER },
+      controversyScore: { type: Type.NUMBER },
+      feedback: { type: Type.STRING }
     },
     required: ["hookScore", "retentionScore", "controversyScore", "feedback"]
   };
@@ -129,7 +246,7 @@ export const analyzeViralScore = async (scriptContent: string, lang: Language): 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Analyze this script for viral potential on YouTube. Be harsh. Output feedback in ${lang === 'pt-br' ? 'Portuguese' : 'English'}.\n\nSCRIPT:\n${scriptContent.substring(0, 5000)}`,
+      contents: `Analyze this script for viral potential on YouTube.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: schema,
@@ -138,13 +255,11 @@ export const analyzeViralScore = async (scriptContent: string, lang: Language): 
     });
 
     if (response.text) {
-      const data = JSON.parse(response.text) as ViralMetrics;
-      return data;
+      return JSON.parse(response.text) as ViralMetrics;
     }
     throw new Error("No data returned");
   } catch (error) {
-    console.error("Analysis failed", error);
-    return { hookScore: 0, retentionScore: 0, controversyScore: 0, feedback: "Analysis Failed: " + (error as Error).message };
+    return { hookScore: 0, retentionScore: 0, controversyScore: 0, feedback: "Analysis Failed" };
   }
 };
 
@@ -152,24 +267,17 @@ export const decodeStyle = async (input: string, lang: Language): Promise<StyleD
   const ai = getClient();
 
   const prompt = `
-    Analyze the following input to create a "Style DNA Profile" for a content creator.
-    LANGUAGE OUTPUT: ${lang === 'pt-br' ? 'Portuguese (Brazil)' : 'English'}
-    
+    Analyze the following input to create a "Style DNA Profile".
     INPUT: "${input}"
+    INSTRUCTIONS: Determine the Tone, Structure, and Audio Signature.
 
-    INSTRUCTIONS:
-    1. If the input is a YouTube URL or Channel Name, use Google Search to find reviews, channel descriptions, popular upload styles, and community discussions about this channel.
-    2. If the input is text, analyze the writing style directly.
-    3. Determine the Tone, Structure, and Audio Signature.
-
-    OUTPUT FORMAT:
-    Return ONLY a JSON object.
+    OUTPUT FORMAT: JSON.
     {
-      "name": "Creative name for this style (e.g. 'Investigative Noir')",
-      "tone": "3 adjectives (e.g. 'Cynical, Fast-paced, Dark')",
-      "structure": "The typical video flow (e.g. 'Cold Open -> Montage -> Deep Dive')",
-      "audioSignature": "Music/SFX style (e.g. 'Synthwave, Distortion')",
-      "description": "A brief summary of why this style is effective."
+      "name": "Creative name",
+      "tone": "3 adjectives",
+      "structure": "Video flow",
+      "audioSignature": "Music/SFX style",
+      "description": "Summary"
     }
   `;
 
@@ -191,68 +299,45 @@ export const decodeStyle = async (input: string, lang: Language): Promise<StyleD
         };
       }
     }
-    throw new Error("Model response was not valid JSON");
+    throw new Error("Invalid JSON");
   } catch (error) {
-    console.error("Decode failed", error);
     return {
       id: 'error',
       name: 'Decryption Failed',
       tone: 'Unknown',
       structure: 'Unknown',
       audioSignature: 'Unknown',
-      description: `System failed to decode style. Error: ${(error as Error).message}`
+      description: `System failed to decode style.`
     };
   }
 };
 
 export const decodeChannelFromData = async (data: ChannelRawData, lang: Language): Promise<StyleDNA> => {
   const ai = getClient();
-  
-  const contextString = `
-    CHANNEL: ${data.title} (${data.customUrl})
-    SUBSCRIBERS: ${data.subscribers}
-    DESCRIPTION: ${data.description}
-    KEYWORDS: ${data.keywords}
-    RECENT VIDEO PATTERNS:
-    ${data.recentVideos.map((v, i) => `${i+1}. "${v.title}" - ${v.description}`).join('\n')}
-  `;
-
   const prompt = `
-    Analyze the raw channel data provided below and construct a Style DNA profile.
-    Infer the content strategy, tone, and production style based on the video titles, descriptions, and channel branding.
-    LANGUAGE OUTPUT: ${lang === 'pt-br' ? 'Portuguese (Brazil)' : 'English'}
+    Analyze the raw channel data below and construct a Style DNA profile.
+    
+    CHANNEL DATA:
+    Title: ${data.title}
+    Desc: ${data.description}
+    Recent Videos: ${data.recentVideos.map(v => v.title).join(', ')}
 
-    DATA:
-    ${contextString}
-
-    OUTPUT FORMAT:
-    Return ONLY a JSON object:
-    {
-      "name": "Creative name for this style",
-      "tone": "3 adjectives",
-      "structure": "Typical flow inferred from content",
-      "audioSignature": "Inferred audio vibe",
-      "description": "Analysis of their viral strategy"
-    }
+    OUTPUT FORMAT JSON:
+    { "name": "...", "tone": "...", "structure": "...", "audioSignature": "...", "description": "..." }
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
-      config: {
-         responseMimeType: "application/json"
-      }
+      config: { responseMimeType: "application/json" }
     });
 
     if (response.text) {
       const parsed = JSON.parse(response.text) as Omit<StyleDNA, 'id'>;
-      return {
-        id: crypto.randomUUID(),
-        ...parsed
-      };
+      return { id: crypto.randomUUID(), ...parsed };
     }
-    throw new Error("No response generated");
+    throw new Error("No response");
 
   } catch (error) {
      return {
@@ -261,7 +346,7 @@ export const decodeChannelFromData = async (data: ChannelRawData, lang: Language
       tone: 'Unknown',
       structure: 'Unknown',
       audioSignature: 'Unknown',
-      description: `System failed to decode channel data. Error: ${(error as Error).message}`
+      description: `System failed to decode channel.`
     };
   }
 };
@@ -271,11 +356,7 @@ export const trendHunt = async (query: string, lang: Language): Promise<TrendRep
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Find obscure, dark, or trending topics related to: "${query}". 
-      Focus on mysteries, unsolved cases, internet folklore, or disturbing facts.
-      Provide a comprehensive summary in ${lang === 'pt-br' ? 'Portuguese' : 'English'}.
-      
-      Always cite your sources implicitly by using the search tool.`,
+      contents: `Find dark/trending topics related to: "${query}". Provide a summary.`,
       config: {
         tools: [{ googleSearch: {} }]
       }
@@ -288,17 +369,40 @@ export const trendHunt = async (query: string, lang: Language): Promise<TrendRep
       }))
       .filter((s: any) => s.uri !== '#') || [];
 
-    const uniqueSources = Array.from(new Map(sources.map((s:any) => [s.uri, s])).values()) as {title: string, uri: string}[];
-
     return {
-      content: response.text || "No trends found in the static.",
-      sources: uniqueSources
+      content: response.text || "No trends found.",
+      sources: Array.from(new Map(sources.map((s:any) => [s.uri, s])).values()) as any
     };
 
   } catch (error) {
-    return {
-      content: `Connection to search grid failed. Error: ${(error as Error).message}`,
-      sources: []
-    };
+    return { content: `Error: ${(error as Error).message}`, sources: [] };
+  }
+};
+
+// --- CHAT WITH AINA ---
+export const chatWithAINA = async (history: ChatMessage[], newMessage: string, lang: Language): Promise<string> => {
+  const ai = getClient();
+  const system = getSystemInstruction(lang);
+  
+  // Convert history to Gemini format
+  const chatHistory = history.map(h => ({
+    role: h.role,
+    parts: [{ text: h.text }]
+  }));
+
+  try {
+    const chat = ai.chats.create({
+      model: "gemini-2.5-flash",
+      history: chatHistory,
+      config: {
+        systemInstruction: system
+      }
+    });
+
+    const result = await chat.sendMessage({ message: newMessage });
+    return result.text || "...";
+  } catch (e) {
+    console.error(e);
+    return "AINA SYSTEM ERROR: Neural Link Unstable.";
   }
 };

@@ -1,7 +1,9 @@
-import { Script, StyleDNA } from '../types';
+
+import { Script, StyleDNA, UserProfile } from '../types';
 
 const SCRIPTS_KEY = 'scriptos_scripts';
 const STYLES_KEY = 'scriptos_styles';
+const PROFILE_KEY = 'scriptos_profile';
 
 export const getScripts = (): Script[] => {
   const data = localStorage.getItem(SCRIPTS_KEY);
@@ -27,7 +29,6 @@ export const deleteScript = (id: string): void => {
 export const getStyles = (): StyleDNA[] => {
   const data = localStorage.getItem(STYLES_KEY);
   if (!data) {
-    // Default styles
     return [
       {
         id: 'default-noir',
@@ -36,14 +37,6 @@ export const getStyles = (): StyleDNA[] => {
         structure: 'Cold Open -> Case File -> The Twist -> Conclusion',
         audioSignature: 'Jazz Noir / Rain Sounds',
         description: 'Classic investigative journalism with a dark twist.'
-      },
-      {
-        id: 'default-analog',
-        name: 'Analog Horror',
-        tone: 'Unsettling, Glitchy, Cryptic',
-        structure: 'Distorted VHS Start -> Hidden Message -> Escalating Dread',
-        audioSignature: 'White Noise / Low Frequency Drone',
-        description: 'Unsettling horror narrative found on lost tapes.'
       }
     ];
   }
@@ -59,4 +52,14 @@ export const saveStyle = (style: StyleDNA): void => {
     styles.push(style);
   }
   localStorage.setItem(STYLES_KEY, JSON.stringify(styles));
+};
+
+// --- PROFILE ---
+export const getUserProfile = (): UserProfile | null => {
+  const data = localStorage.getItem(PROFILE_KEY);
+  return data ? JSON.parse(data) : null;
+};
+
+export const saveUserProfile = (profile: UserProfile): void => {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 };
